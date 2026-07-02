@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
 
-const productSchema = new mongoose.Schema(
+const transactionSchema = new mongoose.Schema(
   {
     user: {
       type: mongoose.Schema.Types.ObjectId,
@@ -8,35 +8,35 @@ const productSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
-
+    product: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Product",
+      required: true,
+      index: true,
+    },
     productName: {
       type: String,
       required: true,
       trim: true,
     },
-
-    category: {
+    type: {
       type: String,
+      enum: ["stock-in", "stock-out"],
       required: true,
-      trim: true,
     },
-
     quantity: {
       type: Number,
       required: true,
-      min: 0,
+      min: 1,
     },
-
-    price: {
-      type: Number,
-      required: true,
-      min: 0,
+    date: {
+      type: Date,
+      default: Date.now,
     },
-
-    supplier: {
+    note: {
       type: String,
-      required: true,
       trim: true,
+      default: "",
     },
   },
   {
@@ -44,7 +44,4 @@ const productSchema = new mongoose.Schema(
   }
 );
 
-module.exports = mongoose.model(
-  "Product",
-  productSchema
-);
+module.exports = mongoose.model("Transaction", transactionSchema);
