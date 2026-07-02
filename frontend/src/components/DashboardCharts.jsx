@@ -1,82 +1,55 @@
 import {
-  BarChart,
   Bar,
-  XAxis,
-  YAxis,
+  BarChart,
   CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
   Cell,
   Legend,
+  Line,
+  LineChart,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
 } from "recharts";
 
-function DashboardCharts({ products }) {
-  // Category Data — unchanged
-  const categoryData = Object.values(
-    products.reduce((acc, product) => {
-      if (!acc[product.category]) {
-        acc[product.category] = {
-          category: product.category,
-          quantity: 0,
-        };
-      }
-      acc[product.category].quantity += Number(product.quantity);
-      return acc;
-    }, {})
-  );
+const COLORS = ["#2563eb", "#16a34a", "#dc2626", "#f59e0b", "#7c3aed"];
 
-  // Updated to match design-system palette (works in both light & dark mode)
-  const COLORS = [
-    "#6366f1",
-    "#10b981",
-    "#ef4444",
-    "#f59e0b",
-    "#8b5cf6",
-    "#0ea5e9",
-  ];
-
+function DashboardCharts({ categoryData, movementData }) {
   return (
-    <div className="charts-section">
-      <div className="charts-section-header">
+    <section className="panel">
+      <div className="section-heading">
         <h2>Inventory Analytics</h2>
       </div>
 
       <div className="charts-grid">
-        {/* Bar Chart */}
-        <div className="chart-card">
+        <div className="chart-box">
           <h3>Stock by Category</h3>
-
-          <ResponsiveContainer width="100%" height={300}>
+          <ResponsiveContainer width="100%" height={280}>
             <BarChart data={categoryData}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="category" />
               <YAxis />
               <Tooltip />
-              <Bar dataKey="quantity" fill="#6366f1" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="quantity" fill="#2563eb" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
 
-        {/* Pie Chart */}
-        <div className="chart-card">
+        <div className="chart-box">
           <h3>Category Distribution</h3>
-
-          <ResponsiveContainer width="100%" height={300}>
+          <ResponsiveContainer width="100%" height={280}>
             <PieChart>
               <Pie
                 data={categoryData}
                 dataKey="quantity"
                 nameKey="category"
-                outerRadius={100}
+                outerRadius={90}
                 label
               >
                 {categoryData.map((entry, index) => (
-                  <Cell
-                    key={index}
-                    fill={COLORS[index % COLORS.length]}
-                  />
+                  <Cell key={entry.category} fill={COLORS[index % COLORS.length]} />
                 ))}
               </Pie>
               <Tooltip />
@@ -84,8 +57,45 @@ function DashboardCharts({ products }) {
             </PieChart>
           </ResponsiveContainer>
         </div>
+
+        <div className="chart-box chart-box-wide">
+          <h3>Stock Movement - Last 30 Days</h3>
+          <ResponsiveContainer width="100%" height={280}>
+            <LineChart data={movementData}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="date" tick={{ fontSize: 11 }} />
+              <YAxis />
+              <Tooltip />
+              <Legend />
+              <Line
+                type="monotone"
+                dataKey="stockIn"
+                name="Stock In"
+                stroke="#16a34a"
+                strokeWidth={2}
+                dot={false}
+              />
+              <Line
+                type="monotone"
+                dataKey="stockOut"
+                name="Stock Out"
+                stroke="#dc2626"
+                strokeWidth={2}
+                dot={false}
+              />
+              <Line
+                type="monotone"
+                dataKey="net"
+                name="Net Movement"
+                stroke="#2563eb"
+                strokeWidth={2}
+                dot={false}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
       </div>
-    </div>
+    </section>
   );
 }
 

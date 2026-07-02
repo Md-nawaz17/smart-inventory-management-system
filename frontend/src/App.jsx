@@ -1,136 +1,212 @@
-// ============================================================
-// App.jsx — Smart Inventory System
-// UI/UX Improvements (business logic is 100% unchanged):
-//   1. Auto-scroll + focus + glow animation on Edit
-//   2. Edit mode visual state (heading, button color, badge)
-//   3. Glassmorphism form card with gradient border
-//   4. Enhanced KPI dashboard cards
-//   5. Chart section styling hooks (logic unchanged)
-//   6. Product table improvements
-//   7. Professional empty state
-//   8. Mobile responsiveness
-//   9. Micro-animations throughout
-// ============================================================
-
-import { useEffect, useRef, useState } from "react";       // [NEW] added useRef
+import { useCallback, useEffect, useRef, useState } from "react";
 import * as XLSX from "xlsx";
 import "./App.css";
+import { apiRequest, clearAuth, getStoredAuth, storeAuth } from "./api";
+import AuthForm from "./components/AuthForm";
 import DashboardCharts from "./components/DashboardCharts";
+import ProductForm from "./components/ProductForm";
+import ProductTable from "./components/ProductTable";
+import SummaryCards from "./components/SummaryCards";
+import TransactionLog from "./components/TransactionLog";
+
+const emptyProductForm = {
+  productName: "",
+  category: "",
+  quantity: "",
+  price: "",
+  supplier: "",
+};
+
+const emptyTransactionForm = {
+  productId: "",
+  type: "stock-in",
+  quantity: "",
+  date: new Date().toISOString().slice(0, 10),
+  note: "",
+};
+
+const emptySummary = {
+  totalProducts: 0,
+  lowStockItems: 0,
+  totalCategories: 0,
+  totalInventoryValue: 0,
+};
 
 function App() {
+  const initialAuth = getStoredAuth();
+  const [token, setToken] = useState(initialAuth.token);
+  const [user, setUser] = useState(initialAuth.user);
+  const [authLoading, setAuthLoading] = useState(false);
   const [products, setProducts] = useState([]);
-  const [editId, setEditId] = useState(null);
+  const [allProducts, setAllProducts] = useState([]);
+  const [transactions, setTransactions] = useState([]);
+  const [categoryData, setCategoryData] = useState([]);
+  const [movementData, setMovementData] = useState([]);
+  const [summary, setSummary] = useState(emptySummary);
+  const [categories, setCategories] = useState([]);
+  const [pagination, setPagination] = useState({
+    currentPage: 1,
+    totalPages: 1,
+    totalItems: 0,
+    limit: 10,
+  });
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("All");
+  const [stockFilter, setStockFilter] = useState("All");
+  const [page, setPage] = useState(1);
   const [darkMode, setDarkMode] = useState(false);
+  const [message, setMessage] = useState("");
+  const [editId, setEditId] = useState(null);
+  const [formData, setFormData] = useState(emptyProductForm);
+  const [transactionForm, setTransactionForm] = useState(emptyTransactionForm);
 
-  // [NEW] Refs for auto-scroll & focus on edit
   const formSectionRef = useRef(null);
   const productNameInputRef = useRef(null);
 
-  const [formData, setFormData] = useState({
-    productName: "",
-    category: "",
-    quantity: "",
-    price: "",
-    supplier: "",
-  });
+  const authHeaders = token;
 
-  useEffect(() => {
-    fetchProducts();
+  const showMessage = useCallback((text) => {
+    setMessage(text);
+    window.setTimeout(() => setMessage(""), 3500);
   }, []);
 
-  // ── UNCHANGED: all API / business logic ──────────────────
-
-  const fetchProducts = async () => {
+  const handleAuthSubmit = async (mode, credentials) => {
     try {
-      const response = await fetch("http://localhost:5000/api/products");
-      const data = await response.json();
-      setProducts(data);
+      setAuthLoading(true);
+      const payload =
+        mode === "login"
+          ? { email: credentials.email, password: credentials.password }
+          : credentials;
+      const data = await apiRequest(`/auth/${mode}`, {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+
+      storeAuth(data);
+      setToken(data.token);
+      setUser(data.user);
+      showMessage("Signed in successfully");
     } catch (error) {
-      console.log(error);
+      showMessage(error.message);
+    } finally {
+      setAuthLoading(false);
     }
   };
 
-  const totalProducts = products.length;
-  const totalStock = products.reduce(
-    (sum, product) => sum + Number(product.quantity),
-    0
-  );
-  const totalValue = products.reduce(
-    (sum, product) => sum + Number(product.quantity) * Number(product.price),
-    0
-  );
-  const lowStockProducts = products.filter(
-    (product) => Number(product.quantity) < 10
-  ).length;
-
-  const categories = [
-    "All",
-    ...new Set(products.map((product) => product.category)),
-  ];
-
-  const filteredProducts = products.filter((product) => {
-    const matchesSearch = product.productName
-      .toLowerCase()
-      .includes(search.toLowerCase());
-    const matchesCategory =
-      categoryFilter === "All" || product.category === categoryFilter;
-    return matchesSearch && matchesCategory;
-  });
-
-  const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+  const logout = () => {
+    clearAuth();
+    setToken(null);
+    setUser(null);
+    setProducts([]);
+    setAllProducts([]);
+    setTransactions([]);
+    setCategoryData([]);
+    setMovementData([]);
+    setSummary(emptySummary);
+    setEditId(null);
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const fetchProducts = useCallback(async () => {
+    try {
+      const params = new URLSearchParams({
+        page,
+        limit: 10,
+        search: debouncedSearch,
+        category: categoryFilter,
+        status: stockFilter,
+      });
+      const data = await apiRequest(`/products?${params.toString()}`, {}, token);
+
+      setProducts(data.products);
+      setPagination(data.pagination);
+      setSummary(data.summary);
+      setCategories(data.categories);
+    } catch (error) {
+      showMessage(error.message);
+    }
+  }, [
+    categoryFilter,
+    debouncedSearch,
+    page,
+    showMessage,
+    stockFilter,
+    token,
+  ]);
+
+  const fetchDashboardData = useCallback(async () => {
+    try {
+      const [exportProducts, transactionsData, analytics] = await Promise.all([
+        apiRequest("/products/export", {}, token),
+        apiRequest("/transactions", {}, token),
+        apiRequest("/products/analytics", {}, token),
+      ]);
+
+      setAllProducts(exportProducts);
+      setTransactions(transactionsData);
+      setCategoryData(analytics.categoryData);
+      setMovementData(analytics.movementData);
+    } catch (error) {
+      showMessage(error.message);
+    }
+  }, [showMessage, token]);
+
+  const refreshInventory = useCallback(async () => {
+    await Promise.all([fetchProducts(), fetchDashboardData()]);
+  }, [fetchDashboardData, fetchProducts]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedSearch(search);
+      setPage(1);
+    }, 300);
+
+    return () => window.clearTimeout(timer);
+  }, [search]);
+
+  useEffect(() => {
+    if (!authHeaders) return;
+    fetchProducts();
+  }, [authHeaders, fetchProducts]);
+
+  useEffect(() => {
+    if (!authHeaders) return;
+    fetchDashboardData();
+  }, [authHeaders, fetchDashboardData]);
+
+  const handleProductChange = (event) => {
+    setFormData({ ...formData, [event.target.name]: event.target.value });
+  };
+
+  const handleProductSubmit = async (event) => {
+    event.preventDefault();
+
     if (Number(formData.quantity) < 0 || Number(formData.price) < 0) {
-      alert("Quantity and Price cannot be negative");
+      showMessage("Quantity and price cannot be negative");
       return;
     }
+
     try {
-      let url = "http://localhost:5000/api/products/add";
-      let method = "POST";
-      if (editId) {
-        url = `http://localhost:5000/api/products/${editId}`;
-        method = "PUT";
-      }
-      const response = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
-      });
-      const data = await response.json();
-      alert(data.message);
-      setFormData({
-        productName: "",
-        category: "",
-        quantity: "",
-        price: "",
-        supplier: "",
-      });
+      const path = editId ? `/products/${editId}` : "/products/add";
+      const method = editId ? "PUT" : "POST";
+      const data = await apiRequest(
+        path,
+        {
+          method,
+          body: JSON.stringify(formData),
+        },
+        token
+      );
+
+      showMessage(data.message);
+      setFormData(emptyProductForm);
       setEditId(null);
-      fetchProducts();
+      await refreshInventory();
     } catch (error) {
-      console.log(error);
+      showMessage(error.message);
     }
   };
 
-  const deleteProduct = async (id) => {
-    const confirmDelete = window.confirm("Delete this product?");
-    if (!confirmDelete) return;
-    try {
-      await fetch(`http://localhost:5000/api/products/${id}`, {
-        method: "DELETE",
-      });
-      fetchProducts();
-    } catch (error) {
-      console.log(error);
-    }
-  };
-
-  // [IMPROVED] editProduct — adds auto-scroll, focus, and glow animation
   const editProduct = (product) => {
     setEditId(product._id);
     setFormData({
@@ -141,32 +217,41 @@ function App() {
       supplier: product.supplier,
     });
 
-    // [NEW] Smooth scroll to form section
-    if (formSectionRef.current) {
-      formSectionRef.current.scrollIntoView({
-        behavior: "smooth",
-        block: "start",
-      });
-    }
+    formSectionRef.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
 
-    // [NEW] Focus the first input after scroll settles
-    setTimeout(() => {
-      if (productNameInputRef.current) {
-        productNameInputRef.current.focus();
-      }
-      // [NEW] Trigger glow animation by toggling a CSS class
-      if (formSectionRef.current) {
-        formSectionRef.current.classList.remove("form-edit-glow");
-        // Force reflow so animation restarts every time Edit is clicked
-        void formSectionRef.current.offsetWidth;
-        formSectionRef.current.classList.add("form-edit-glow");
-      }
-    }, 450);
+    window.setTimeout(() => productNameInputRef.current?.focus(), 350);
   };
 
-  const exportToExcel = () => {
+  const cancelEdit = () => {
+    setEditId(null);
+    setFormData(emptyProductForm);
+  };
+
+  const deleteProduct = async (id) => {
+    if (!window.confirm("Delete this product?")) return;
+
+    try {
+      const data = await apiRequest(
+        `/products/${id}`,
+        { method: "DELETE" },
+        token
+      );
+      showMessage(data.message);
+      await refreshInventory();
+    } catch (error) {
+      showMessage(error.message);
+    }
+  };
+
+  const exportToExcel = async () => {
+    const source = allProducts.length
+      ? allProducts
+      : await apiRequest("/products/export", {}, token);
     const worksheet = XLSX.utils.json_to_sheet(
-      products.map((product) => ({
+      source.map((product) => ({
         Product: product.productName,
         Category: product.category,
         Quantity: product.quantity,
@@ -179,294 +264,128 @@ function App() {
     XLSX.writeFile(workbook, "inventory-products.xlsx");
   };
 
+  const handleTransactionChange = (event) => {
+    setTransactionForm({
+      ...transactionForm,
+      [event.target.name]: event.target.value,
+    });
+  };
+
+  const handleTransactionSubmit = async (event) => {
+    event.preventDefault();
+
+    try {
+      const data = await apiRequest(
+        "/transactions",
+        {
+          method: "POST",
+          body: JSON.stringify(transactionForm),
+        },
+        token
+      );
+      showMessage(data.message);
+      setTransactionForm(emptyTransactionForm);
+      await refreshInventory();
+    } catch (error) {
+      showMessage(error.message);
+    }
+  };
+
+  if (!token || !user) {
+    return (
+      <div className={darkMode ? "app dark-mode" : "app"}>
+        <nav className="navbar">
+          <div className="logo">Smart Inventory</div>
+          <button type="button" onClick={() => setDarkMode(!darkMode)}>
+            {darkMode ? "Light" : "Dark"}
+          </button>
+        </nav>
+        {message && <div className="toast">{message}</div>}
+        <AuthForm onSubmit={handleAuthSubmit} loading={authLoading} />
+      </div>
+    );
+  }
+
   return (
     <div className={darkMode ? "app dark-mode" : "app"}>
-
-      {/* ── NAVBAR (unchanged structure, CSS improved) ── */}
       <nav className="navbar">
-        <div className="logo">📦 Smart Inventory</div>
-        <button className="dark-btn" onClick={() => setDarkMode(!darkMode)}>
-          {darkMode ? "☀ Light" : "🌙 Dark"}
-        </button>
-      </nav>
-
-      <div className="container">
-
-        {/* ── HERO ── */}
-        <div className="hero-section">
-          <h1>Inventory Management System</h1>
-          <p className="hero-subtitle">
-            Track inventory, monitor stock levels and manage products efficiently.
-          </p>
-        </div>
-
-        {/* ── DASHBOARD STAT CARDS (data unchanged, styling enhanced) ── */}
-        <div className="dashboard-cards">
-          <div className="card card-products">
-            <div className="card-header">
-              <h3>Total Products</h3>
-              <span className="card-icon">📦</span>
-            </div>
-            <p className="card-number">{totalProducts}</p>
-            <p className="card-foot">Unique items tracked</p>
-          </div>
-
-          <div className="card card-stock">
-            <div className="card-header">
-              <h3>Total Stock</h3>
-              <span className="card-icon">🏷️</span>
-            </div>
-            <p className="card-number">{totalStock.toLocaleString("en-IN")}</p>
-            <p className="card-foot">Units across inventory</p>
-          </div>
-
-          <div className="card card-value">
-            <div className="card-header">
-              <h3>Inventory Value</h3>
-              <span className="card-icon">💰</span>
-            </div>
-            <p className="card-number">
-              ₹{totalValue.toLocaleString("en-IN")}
-            </p>
-            <p className="card-foot">Total stock worth</p>
-          </div>
-
-          <div className="card card-low">
-            <div className="card-header">
-              <h3>Low Stock Items</h3>
-              <span className="card-icon">⚠️</span>
-            </div>
-            <p className="card-number">{lowStockProducts}</p>
-            <p className="card-foot">Items below threshold</p>
-          </div>
-        </div>
-
-        {/* ── ADD / EDIT FORM ── */}
-        {/* [NEW] ref on section wrapper for scroll + glow animation */}
-        <div className="form-section" ref={formSectionRef}>
-
-          {/* [NEW] Edit mode badge — only visible when editing */}
-          {editId && (
-            <div className="edit-mode-badge">
-              <span className="badge-dot" />
-              Editing Product
-            </div>
-          )}
-
-          {/* [IMPROVED] Heading changes dynamically; icon swaps too */}
-          <h2 className="form-title">
-            {editId ? "✏ Update Product" : "＋ Add Product"}
-          </h2>
-
-          {/* [IMPROVED] form wrapped in glassmorphism card via .form-card */}
-          <div className={`form-card${editId ? " form-card--edit" : ""}`}>
-            <form onSubmit={handleSubmit}>
-              {/* [NEW] ref on first input for auto-focus */}
-              <input
-                ref={productNameInputRef}
-                type="text"
-                name="productName"
-                placeholder="Product Name"
-                value={formData.productName}
-                onChange={handleChange}
-                required
-              />
-              <input
-                type="text"
-                name="category"
-                placeholder="Category"
-                value={formData.category}
-                onChange={handleChange}
-                required
-              />
-              <input
-                type="number"
-                name="quantity"
-                placeholder="Quantity"
-                value={formData.quantity}
-                onChange={handleChange}
-                required
-              />
-              <input
-                type="number"
-                name="price"
-                placeholder="Price"
-                value={formData.price}
-                onChange={handleChange}
-                required
-              />
-              <input
-                type="text"
-                name="supplier"
-                placeholder="Supplier"
-                value={formData.supplier}
-                onChange={handleChange}
-                required
-              />
-
-              {/* [IMPROVED] Button: amber when editing, purple when adding */}
-              <button
-                type="submit"
-                className={editId ? "btn-submit btn-submit--edit" : "btn-submit"}
-              >
-                {editId ? "✓ Update Product" : "＋ Add Product"}
-              </button>
-            </form>
-          </div>
-        </div>
-
-        <hr />
-
-        {/* ── CHARTS (logic & JSX unchanged; CSS class hooks added) ── */}
-        <DashboardCharts products={products} />
-
-        {/* ── PRODUCTS LIST HEADER ── */}
-        <div className="table-section-header">
-          <h2 className="section-title">Products List</h2>
-          <button className="btn-export" onClick={exportToExcel}>
-            ↓ Export Excel
+        <div className="logo">Smart Inventory</div>
+        <div className="nav-actions">
+          <span className="notification-badge">
+            Low stock: {summary.lowStockItems}
+          </span>
+          <span className="user-chip">{user.name}</span>
+          <button type="button" onClick={() => setDarkMode(!darkMode)}>
+            {darkMode ? "Light" : "Dark"}
+          </button>
+          <button type="button" className="ghost-action" onClick={logout}>
+            Logout
           </button>
         </div>
+      </nav>
 
-        {/* ── SEARCH + FILTER (unchanged logic) ── */}
-        <div className="search-filter">
-          <div className="search-input-wrapper">
-            <span className="search-icon" aria-hidden="true">
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <circle cx="11" cy="11" r="8" />
-                <line x1="21" y1="21" x2="16.65" y2="16.65" />
-              </svg>
-            </span>
-            <input
-              type="text"
-              placeholder="Search product..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </div>
-          <select
-            value={categoryFilter}
-            onChange={(e) => setCategoryFilter(e.target.value)}
-          >
-            {categories.map((category) => (
-              <option key={category} value={category}>
-                {category}
-              </option>
-            ))}
-          </select>
-        </div>
+      {message && <div className="toast">{message}</div>}
 
-        {/* ── TABLE ── */}
-        <div className="table-wrapper">
-          <table>
-            <thead>
-              <tr>
-                <th>Product</th>
-                <th>Category</th>
-                <th>Quantity</th>
-                <th>Price</th>
-                <th>Supplier</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
+      <main className="container">
+        <section className="hero-section">
+          <h1>Inventory Management System</h1>
+          <p className="muted">
+            Track stock levels, movements, low-stock alerts, and total inventory
+            value from one dashboard.
+          </p>
+        </section>
 
-            <tbody>
-              {filteredProducts.length === 0 ? (
-                // [IMPROVED] Professional empty state card
-                <tr>
-                  <td colSpan="6" className="empty-state">
-                    <div className="empty-state-inner">
-                      <div className="empty-icon-wrap">
-                        <span className="empty-icon">📦</span>
-                      </div>
-                      <p className="empty-title">No Products Found</p>
-                      <span className="empty-sub">
-                        {search || categoryFilter !== "All"
-                          ? "Try adjusting your search or category filter."
-                          : "Add your first product to start managing inventory."}
-                      </span>
-                      {!search && categoryFilter === "All" && (
-                        <button
-                          className="empty-cta"
-                          onClick={() => {
-                            formSectionRef.current?.scrollIntoView({
-                              behavior: "smooth",
-                              block: "start",
-                            });
-                            setTimeout(
-                              () => productNameInputRef.current?.focus(),
-                              450
-                            );
-                          }}
-                        >
-                          ＋ Add First Product
-                        </button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ) : (
-                filteredProducts.map((product) => (
-                  <tr
-                    key={product._id}
-                    className={Number(product.quantity) < 10 ? "low-stock" : ""}
-                  >
-                    <td>
-                      <span className="product-name">{product.productName}</span>
-                    </td>
-                    <td>
-                      <span className="category-pill">{product.category}</span>
-                    </td>
-                    <td>
-                      {product.quantity}
-                      <br />
-                      {Number(product.quantity) < 10 ? (
-                        <span className="status-low">Low Stock</span>
-                      ) : (
-                        <span className="status-good">In Stock</span>
-                      )}
-                    </td>
-                    <td>₹{Number(product.price).toLocaleString("en-IN")}</td>
-                    <td>{product.supplier}</td>
-                    <td>
-                      <div className="action-btns">
-                        <button
-                          className="btn-edit"
-                          onClick={() => editProduct(product)}
-                          title="Edit product"
-                        >
-                          ✏ Edit
-                        </button>
-                        <button
-                          className="btn-delete"
-                          onClick={() => deleteProduct(product._id)}
-                          title="Delete product"
-                        >
-                          🗑 Delete
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+        <SummaryCards summary={summary} />
 
-      {/* ── FOOTER ── */}
+        <ProductForm
+          formData={formData}
+          editId={editId}
+          formRef={formSectionRef}
+          firstInputRef={productNameInputRef}
+          onChange={handleProductChange}
+          onSubmit={handleProductSubmit}
+          onCancel={cancelEdit}
+        />
+
+        <DashboardCharts
+          categoryData={categoryData}
+          movementData={movementData}
+        />
+
+        <ProductTable
+          products={products}
+          search={search}
+          categoryFilter={categoryFilter}
+          stockFilter={stockFilter}
+          categories={categories}
+          pagination={pagination}
+          onSearchChange={setSearch}
+          onCategoryChange={(value) => {
+            setCategoryFilter(value);
+            setPage(1);
+          }}
+          onStockChange={(value) => {
+            setStockFilter(value);
+            setPage(1);
+          }}
+          onEdit={editProduct}
+          onDelete={deleteProduct}
+          onPageChange={setPage}
+          onExport={exportToExcel}
+        />
+
+        <TransactionLog
+          products={allProducts}
+          transactions={transactions}
+          transactionForm={transactionForm}
+          onChange={handleTransactionChange}
+          onSubmit={handleTransactionSubmit}
+        />
+      </main>
+
       <footer className="footer">
-        <p>Smart Inventory System © 2025</p>
-        <span>Built with React • Node.js • MongoDB</span>
+        <p>Smart Inventory System 2026</p>
+        <span>Built with React, Node.js, Express, and MongoDB</span>
       </footer>
     </div>
   );
