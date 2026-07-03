@@ -58,8 +58,10 @@ router.post("/register", async (req, res) => {
 
     sendAuthResponse(res, user, 201);
   } catch (error) {
+    console.error("Register error:", error);
     res.status(500).json({
       success: false,
+      message: "Unable to register user",
       error: error.message,
     });
   }
@@ -87,8 +89,10 @@ router.post("/login", async (req, res) => {
 
     sendAuthResponse(res, user);
   } catch (error) {
+    console.error("Login error:", error);
     res.status(500).json({
       success: false,
+      message: "Unable to login",
       error: error.message,
     });
   }

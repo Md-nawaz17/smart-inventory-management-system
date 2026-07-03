@@ -2,6 +2,7 @@ import { useState } from "react";
 
 function AuthForm({ onSubmit, loading }) {
   const [mode, setMode] = useState("login");
+  const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -76,15 +77,26 @@ function AuthForm({ onSubmit, loading }) {
 
           <label>
             Password
-            <input
-              type="password"
-              name="password"
-              value={formData.password}
-              onChange={handleChange}
-              placeholder="At least 6 characters"
-              minLength="6"
-              required
-            />
+            <span className="password-field">
+              <input
+                type={showPassword ? "text" : "password"}
+                name="password"
+                value={formData.password}
+                onChange={handleChange}
+                placeholder="At least 6 characters"
+                minLength="6"
+                autoComplete={isRegister ? "new-password" : "current-password"}
+                required
+              />
+              <button
+                type="button"
+                className="password-toggle"
+                onClick={() => setShowPassword((visible) => !visible)}
+                aria-label={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? "Hide" : "Show"}
+              </button>
+            </span>
           </label>
 
           <button type="submit" className="primary-action" disabled={loading}>
