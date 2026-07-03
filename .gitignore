@@ -8,6 +8,5 @@ backend/.env
 dist
 build
 *.log
-screenshots/Frontpage.png
 
 .vscode

@@ -21,7 +21,7 @@ track stock movement, review analytics, and export inventory data to Excel.
 
 | Layer | Technology |
 | --- | --- |
-| Frontend | React, Vite, CSS Grid, Flexbox |
+| Frontend | React, Vite, Tailwind CSS |
 | Charts | Recharts |
 | Export | XLSX |
 | Backend | Node.js, Express.js |
@@ -33,6 +33,7 @@ track stock movement, review analytics, and export inventory data to Excel.
 
 Place updated screenshots in the `screenshots/` folder.
 
+![Login](screenshots/Frontpage.png)
 ![Dashboard](screenshots/dashboard.png)
 ![Analytics](screenshots/analytics.png)
 ![Products](screenshots/products.png)

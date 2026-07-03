@@ -1,0 +1,529 @@
+SMART INVENTORY MANAGEMENT SYSTEM - COMPLETE PROJECT HANDOFF
+=============================================================
+
+Purpose of this file
+--------------------
+This document gives another developer or AI assistant enough context to review,
+run, understand, and improve the entire project without first reverse-engineering
+the repository. It intentionally excludes real environment secrets.
+
+
+1. PROJECT SUMMARY
+------------------
+Name: Smart Inventory Management System
+UI product name: StockPilot
+Author: Mohammed Nawaz
+Repository: https://github.com/Md-nawaz17/smart-inventory-management-system
+
+This is a full-stack MERN inventory application. Each registered user gets an
+isolated inventory and can:
+
+- Register and sign in with JWT authentication.
+- Add, edit, delete, search, filter, and export products.
+- Record stock-in and stock-out transactions.
+- See total products, inventory value, categories, and low-stock totals.
+- View current stock by category and 30-day stock movement analytics.
+- Switch between light and dark themes.
+- Use the dashboard on desktop, tablet, and mobile layouts.
+
+The application is intended as an educational/portfolio project, but the core
+flows use a real Express API and MongoDB database rather than mocked data.
+
+
+2. TECHNOLOGY STACK
+-------------------
+Frontend:
+- React 19
+- Vite 8
+- React Router 7
+- Axios
+- Tailwind CSS 3 with PostCSS and Autoprefixer
+- Lucide React icons
+- Recharts
+- SheetJS/xlsx for Excel export
+
+Backend:
+- Node.js
+- Express 5
+- MongoDB
+- Mongoose 9
+- JSON Web Tokens
+- bcryptjs
+- cors
+- dotenv
+
+Development/deployment:
+- Nodemon for backend development
+- ESLint for frontend linting
+- Vercel configuration for the frontend SPA
+- Render Blueprint for the backend API
+
+
+3. TOP-LEVEL REPOSITORY STRUCTURE
+---------------------------------
+/
+|-- backend/
+|   |-- middleware/authMiddleware.js
+|   |-- models/User.js
+|   |-- models/Product.js
+|   |-- models/Transaction.js
+|   |-- routes/authRoutes.js
+|   |-- routes/productRoutes.js
+|   |-- routes/transactionRoutes.js
+|   |-- .env.example
+|   |-- package.json
+|   `-- server.js
+|-- frontend/
+|   |-- src/
+|   |   |-- api/axios.js
+|   |   |-- components/dashboard/
+|   |   |-- components/layout/
+|   |   |-- components/ui/
+|   |   |-- context/
+|   |   |-- pages/auth/
+|   |   |-- pages/
+|   |   |-- utils/inventoryEvents.js
+|   |   |-- App.jsx
+|   |   |-- index.css
+|   |   `-- main.jsx
+|   |-- postcss.config.cjs
+|   |-- tailwind.config.cjs
+|   |-- vercel.json
+|   `-- package.json
+|-- screenshots/
+|-- render.yaml
+|-- README.md
+`-- PROJECT_DESCRIPTION.txt
+
+Some older frontend files and components remain in the repository from the
+previous single-page implementation. The active application starts at
+frontend/src/main.jsx and uses the routed structure defined in App.jsx.
+
+
+4. USER EXPERIENCE AND ROUTES
+-----------------------------
+The root URL redirects to /dashboard.
+
+Public routes:
+- /login
+- /register
+
+Protected routes:
+- /dashboard                  Overview
+- /dashboard/products         Product management
+- /dashboard/analytics        Inventory analytics
+- /dashboard/transactions     Stock movement entry and history
+
+Unknown routes redirect to /dashboard.
+
+The protected route checks for an authenticated user or stored token. The public
+route keeps an authenticated user out of login/register pages. Route components
+are lazy-loaded with React Suspense, so the login page does not eagerly download
+the chart and spreadsheet code.
+
+Desktop layout:
+- Fixed left navigation sidebar.
+- Sticky top bar with page title, theme toggle, low-stock notification, and user
+  menu.
+- Main content area with responsive cards, charts, tables, and forms.
+
+Mobile layout:
+- Sidebar becomes a slide-in drawer with a backdrop.
+- Tables can scroll horizontally.
+- Cards and forms collapse to single-column layouts as space becomes limited.
+
+
+5. FRONTEND ARCHITECTURE
+------------------------
+
+App and routing:
+- frontend/src/App.jsx creates ThemeProvider, AuthProvider, BrowserRouter,
+  protected/public route guards, lazy route imports, and a loading fallback.
+
+Authentication state:
+- frontend/src/context/AuthContext.jsx owns user, loading, and auth error state.
+- login() calls POST /auth/login.
+- register() calls POST /auth/register.
+- logout() clears local and session storage.
+- "Keep me signed in" stores auth in localStorage.
+- When it is disabled, auth is stored in sessionStorage.
+
+API client:
+- frontend/src/api/axios.js creates the shared Axios client.
+- Base URL is VITE_API_URL or http://localhost:5000/api.
+- A request interceptor adds Authorization: Bearer <token>.
+- A 401 response clears authentication and redirects to /login.
+- Legacy and current token/user storage keys are supported.
+
+Theme:
+- frontend/src/context/ThemeContext.jsx stores light/dark preference.
+- It initially uses the saved theme or the operating system preference.
+- It toggles the "dark" class on the document root and saves the result.
+
+Inventory update events:
+- frontend/src/utils/inventoryEvents.js publishes inventory:updated.
+- Product edits/deletes/additions and stock transactions publish this event.
+- DashboardLayout listens for it and refreshes the low-stock notification count.
+
+Important UI components:
+- DashboardLayout.jsx: shared authenticated shell and page title resolution.
+- Sidebar.jsx: route navigation and responsive mobile drawer.
+- Topbar.jsx: theme, notifications, identity, and logout.
+- SummaryCards.jsx: totals for products, value, low stock, and categories.
+- AnalyticsCharts.jsx: category bar chart, 30-day movement area chart, and
+  category distribution donut chart.
+- ProductTable.jsx: product toolbar, filters, table, client pagination, edit,
+  delete, and Excel export.
+- ProductModal.jsx: add/edit product form.
+- LowStockAlerts.jsx: up to six products below the low-stock threshold.
+- TransactionLog.jsx: transaction form and latest stock movements.
+- PasswordInput.jsx: password field with visibility toggle.
+
+Dashboard overview behavior:
+- Fetches low-stock products from GET /products with status=low-stock.
+- Fetches analytics from GET /products/analytics in parallel.
+- Uses the server summary for totals so counts remain correct beyond one page.
+- Shows up to six low-stock products and the eight latest transactions.
+
+Products page behavior:
+- Fetches up to 500 products from the API.
+- Search, category filtering, stock-status filtering, and 10-row pagination are
+  currently performed in the browser.
+- Add uses POST /products/add.
+- Edit uses PUT /products/:id.
+- Delete uses DELETE /products/:id after browser confirmation.
+- Export fetches GET /products/export and generates an .xlsx workbook.
+- The xlsx library is dynamically imported only when Export is clicked.
+
+Analytics page behavior:
+- Fetches GET /products/analytics.
+- Shows stock totals by category.
+- Shows stock-in and stock-out movement for each of the last 30 days.
+- Shows category share using the category quantities.
+
+Transactions page behavior:
+- Fetches products for its selector and the latest 50 transactions.
+- Records stock-in or stock-out through POST /transactions.
+- Refreshes products and transactions after a successful operation.
+
+
+6. BACKEND STARTUP AND CONFIGURATION
+------------------------------------
+backend/server.js:
+- Loads .env.
+- Requires MONGO_URI and JWT_SECRET.
+- Exits immediately if required environment variables are missing.
+- Supports an optional comma-separated DNS_SERVERS setting for environments
+  where Node's DNS resolver cannot resolve MongoDB SRV records.
+- Allows localhost/127.0.0.1 frontend origins plus comma-separated CLIENT_URL
+  origins.
+- Parses JSON request bodies.
+- Connects to MongoDB before opening the HTTP listening port.
+- Exits if MongoDB cannot connect instead of reporting a misleading healthy API.
+
+Backend environment variables:
+- PORT: API port, default 5000.
+- MONGO_URI: required MongoDB connection string.
+- JWT_SECRET: required JWT signing secret.
+- JWT_EXPIRES_IN: optional token lifetime, default 7d.
+- CLIENT_URL: optional comma-separated deployed frontend origins.
+- DNS_SERVERS: optional comma-separated DNS resolvers.
+
+Do not commit backend/.env. It is ignored by Git.
+
+
+7. DATABASE MODELS
+------------------
+
+User:
+- name: required trimmed string.
+- email: required, unique, lowercased, trimmed string.
+- password: required string with minimum length 6.
+- createdAt and updatedAt timestamps.
+- Password is hashed with bcrypt and a generated salt before save.
+- matchPassword() compares a candidate password to the hash.
+
+Product:
+- user: required indexed reference to User.
+- productName: required trimmed string.
+- category: required trimmed string.
+- quantity: required number, minimum 0.
+- price: required number, minimum 0.
+- supplier: required trimmed string.
+- createdAt and updatedAt timestamps.
+
+Transaction:
+- user: required indexed reference to User.
+- product: required indexed reference to Product.
+- productName: required snapshot of the product name.
+- type: stock-in or stock-out.
+- quantity: required number, minimum 1.
+- date: supplied date or current time.
+- note: optional trimmed string.
+- createdAt and updatedAt timestamps.
+
+All product and transaction queries include the authenticated user ID. One user
+cannot read or mutate another user's records through the API.
+
+
+8. AUTHENTICATION API
+---------------------
+POST /api/auth/register
+Body:
+{
+  "name": "User Name",
+  "email": "user@example.com",
+  "password": "minimum-six-characters"
+}
+
+Behavior:
+- Validates required fields and minimum password length.
+- Normalizes the email.
+- Rejects duplicate emails with HTTP 409.
+- Hashes the password through the User model.
+- Returns success, JWT, and safe user fields.
+
+POST /api/auth/login
+Body:
+{
+  "email": "user@example.com",
+  "password": "password"
+}
+
+Behavior:
+- Finds the normalized email.
+- Verifies the bcrypt password hash.
+- Returns HTTP 401 for invalid credentials.
+- Returns success, JWT, and safe user fields when valid.
+
+GET /api/auth/me
+- Requires a Bearer token.
+- Returns the authenticated user's ID, name, and email.
+
+JWT middleware:
+- Reads Authorization: Bearer <token>.
+- Verifies the token with JWT_SECRET.
+- Loads the user and excludes the password.
+- Returns HTTP 401 for missing, invalid, expired, or orphaned tokens.
+
+
+9. PRODUCT API AND INVENTORY RULES
+----------------------------------
+All product endpoints require authentication.
+
+POST /api/products/add
+- Requires productName, category, quantity, price, and supplier.
+- Rejects negative quantity or price.
+- Creates a product owned by the authenticated user.
+
+GET /api/products
+Supported query parameters:
+- page: positive page number.
+- limit: positive items per page.
+- search: case-insensitive product-name search.
+- category: exact category, or All.
+- status: All, in-stock, low-stock, or out-of-stock.
+
+Response contains:
+- products for the selected page.
+- pagination: currentPage, totalPages, totalItems, limit.
+- summary calculated across the user's full inventory.
+- sorted list of the user's categories.
+
+Stock status rules:
+- Out of stock: quantity equals 0.
+- Low stock: quantity is greater than 0 and less than 10.
+- In stock: quantity is 10 or greater.
+
+Summary values:
+- Total number of products.
+- Number of low-stock products.
+- Total inventory value: sum(quantity * price).
+- Number of unique categories.
+
+GET /api/products/export
+- Returns every product owned by the current user, newest first.
+
+GET /api/products/analytics
+- Groups current quantity by category.
+- Aggregates stock-in and stock-out transactions for the last 30 days.
+- Returns all 30 calendar days, filling days without movement with zeros.
+- Each movement row contains date, stockIn, stockOut, and net.
+
+GET /api/products/:id
+- Returns one user-owned product or HTTP 404.
+
+PUT /api/products/:id
+- Updates productName, category, quantity, price, and supplier.
+- Runs Mongoose validators.
+- Rejects negative quantity or price.
+
+DELETE /api/products/:id
+- Deletes a user-owned product.
+- Deletes transaction history associated with that product and user.
+
+
+10. TRANSACTION API AND STOCK UPDATES
+-------------------------------------
+All transaction endpoints require authentication.
+
+POST /api/transactions
+Body:
+{
+  "productId": "MongoDB product ID",
+  "type": "stock-in",
+  "quantity": 5,
+  "date": "optional ISO date",
+  "note": "optional note"
+}
+
+Validation:
+- Product, type, and quantity are required.
+- Type must be stock-in or stock-out.
+- Quantity must be a finite number of at least 1.
+- Product must belong to the authenticated user.
+- Stock-out cannot exceed current product quantity.
+
+Behavior:
+- Stock-in adds quantity.
+- Stock-out subtracts quantity.
+- Creates a transaction record.
+- Saves the updated product quantity.
+- Returns the transaction and updated product.
+
+GET /api/transactions
+- Returns the authenticated user's latest 50 transactions.
+- Populates the current product name/category when the product still exists.
+- Sorts primarily by transaction date, newest first.
+
+
+11. STYLING AND DESIGN SYSTEM
+-----------------------------
+- Tailwind scans frontend/index.html and all JS/JSX/TS/TSX under src.
+- Dark mode uses a class on the HTML element.
+- Brand color is an indigo scale.
+- Fonts are Inter and Plus Jakarta Sans from Google Fonts.
+- Shared component classes include surface, btn-primary, btn-secondary,
+  btn-danger, input-field, and badge.
+- Focus-visible rings are included for keyboard accessibility.
+- The interface includes loading skeletons, empty states, hover states, responsive
+  grids, and dark-mode variants.
+
+The screenshots folder contains examples of login, dashboard, analytics,
+products, and dark-mode screens.
+
+
+12. LOCAL DEVELOPMENT
+---------------------
+Prerequisites:
+- Recent Node.js and npm.
+- A reachable MongoDB database.
+
+Backend:
+1. cd backend
+2. npm install
+3. Copy .env.example to .env.
+4. Set MONGO_URI and JWT_SECRET.
+5. npm run dev
+
+Frontend:
+1. cd frontend
+2. npm install
+3. Optionally set VITE_API_URL in frontend/.env.
+4. npm run dev
+
+Default local addresses:
+- Frontend: http://localhost:5173
+- Backend API: http://localhost:5000
+- API base: http://localhost:5000/api
+
+Quality commands:
+- Frontend lint: cd frontend && npm run lint
+- Frontend production build: cd frontend && npm run build
+- Backend syntax example: node --check backend/server.js
+
+
+13. DEPLOYMENT
+--------------
+Render backend:
+- render.yaml defines a Node web service rooted at backend/.
+- Build command: npm install.
+- Start command: npm start.
+- Configure MONGO_URI and CLIENT_URL.
+- Render generates JWT_SECRET.
+- JWT_EXPIRES_IN defaults to 7d in the blueprint.
+
+Vercel frontend:
+- frontend/vercel.json runs npm run build and serves dist.
+- The SPA rewrite sends application paths to index.html.
+- Configure VITE_API_URL to the deployed Render API URL ending in /api.
+- Configure the matching Vercel URL in backend CLIENT_URL.
+
+
+14. CURRENT VALIDATION STATUS
+-----------------------------
+The latest implementation has been checked with:
+- Frontend ESLint.
+- Vite production build.
+- Node syntax checks for backend server and route files.
+- Real API smoke flow covering register, current user, product create/list,
+  stock-in transaction, analytics, product delete, and cleanup.
+- Allowed and disallowed CORS origin checks.
+
+The main route bundle was reduced by lazy-loading pages and loading xlsx only
+when an export is requested.
+
+
+15. KNOWN LIMITATIONS AND GOOD IMPROVEMENT TARGETS
+--------------------------------------------------
+These are review opportunities, not claims that the application is broken:
+
+- There is no automated frontend or backend test suite.
+- There is no centralized Express error middleware or structured logging.
+- Request validation is manual; a schema library such as Zod/Joi could improve
+  consistency.
+- Stock transaction creation and product quantity saving are separate database
+  writes. A MongoDB transaction would make this operation atomic.
+- Product filtering/pagination on the Products screen is client-side after
+  downloading up to 500 products, although the backend supports server paging.
+- There is no refresh-token strategy, password reset, email verification,
+  multi-factor authentication, role system, or account management page.
+- There is no rate limiting, Helmet configuration, CSRF analysis, or audit log.
+- JWTs are stored in Web Storage, which requires strong XSS prevention.
+- Product category and supplier values are free text and can develop duplicates
+  caused by spelling/casing differences.
+- Currency is displayed as Rs. but is not user-configurable.
+- There are no SKU, barcode, warehouse/location, reorder-point, tax, or unit
+  fields.
+- Inventory value analytics are current-state only; historical valuation is not
+  stored.
+- Deleting a product deletes its transactions, which may be undesirable for
+  accounting/audit history.
+- The notification bell indicates low stock but does not open a notification
+  panel.
+- Error and success feedback could use a consistent toast system.
+- Some legacy frontend files could be removed after confirming they are unused.
+- Accessibility should receive a dedicated keyboard and screen-reader audit.
+- The deployed setup should add monitoring, backups, health checks, and secret
+  rotation practices.
+
+
+16. SUGGESTED PROMPT FOR CLAUDE
+-------------------------------
+Use this prompt together with the repository:
+
+"Review this Smart Inventory Management System as a senior full-stack engineer
+and product designer. Read PROJECT_DESCRIPTION.txt first, then inspect the actual
+code before making recommendations. Identify bugs, security risks, data
+integrity problems, scalability issues, accessibility gaps, responsive design
+problems, and confusing user flows. Separate findings into critical, high,
+medium, and low priority. For every finding, cite the relevant file and explain
+the concrete impact. Then propose a phased improvement plan that preserves the
+current MERN architecture and existing behavior. Do not invent features or API
+behavior that are not present in the repository. Start with a review only; do
+not edit files until I approve the plan."
+
+For an implementation-oriented request, append:
+
+"After the review, recommend the smallest safe first batch of changes. Include
+acceptance criteria and tests for that batch."
