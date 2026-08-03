@@ -6,9 +6,9 @@ analytics, and export inventory to Excel.
 
 ## Live Demo
 
-A public deployment is not configured yet. The repository includes Render and
-Vercel configuration so the frontend and API can be deployed without changing
-application code.
+[Open StockPilot](https://stockpilot-md-nawaz17.vercel.app)
+
+API: https://stockpilot-api-md-nawaz17.vercel.app
 
 ## Features
 
@@ -30,7 +30,7 @@ application code.
 | Backend | Node.js, Express, MongoDB, Mongoose |
 | Authentication | JWT, bcryptjs |
 | UI and data | Lucide React, Recharts, SheetJS/xlsx |
-| Deployment | Vercel frontend, Render backend |
+| Deployment | Vercel frontend and serverless API |
 
 ## Run Locally
 
@@ -84,15 +84,19 @@ Open `http://localhost:5173`.
 
 ## Deploy
 
-1. Create a Render Web Service from `render.yaml` and set `MONGO_URI`,
-   `JWT_SECRET`, and `CLIENT_URL`.
+1. Deploy the API using one of these options:
+   - **Render:** create a Web Service from `render.yaml` and set `MONGO_URI`,
+     `JWT_SECRET`, and `CLIENT_URL`.
+   - **Vercel:** import the repository with `backend` as the project root. Set
+     `MONGO_URI`, `JWT_SECRET`, and `CLIENT_URL`; `backend/vercel.json` routes
+     requests to the serverless API entry point.
 2. Import the repository into Vercel with `frontend` as the project root.
-3. Set `VITE_API_URL` in Vercel to the Render API URL followed by `/api`.
-4. Update Render's `CLIENT_URL` with the Vercel deployment URL, then redeploy
-   the backend.
+3. Set `VITE_API_URL` to the deployed API URL followed by `/api`.
+4. Set the API's `CLIENT_URL` to the frontend's Vercel URL and redeploy the
+   API if necessary.
 
-The project includes `frontend/vercel.json` for Vercel SPA routing and
-`render.yaml` for the Render API service.
+The project includes Vercel configuration for the frontend SPA and backend
+serverless API, plus `render.yaml` for the Render API option.
 
 ## Verification
 

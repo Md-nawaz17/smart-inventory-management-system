@@ -7,6 +7,7 @@ to manage stock, log product movement, identify items that need attention, and
 review inventory trends.
 
 Repository: https://github.com/Md-nawaz17/smart-inventory-management-system
+Live application: https://stockpilot-md-nawaz17.vercel.app
 
 
 CORE CAPABILITIES
@@ -41,6 +42,8 @@ screenshots/    Application screenshots
 render.yaml     Render backend deployment configuration
 frontend/vercel.json
                 Vercel frontend deployment configuration
+backend/vercel.json
+                Vercel serverless API deployment configuration
 .github/        Continuous integration workflow
 
 
@@ -56,9 +59,10 @@ LOCAL DEVELOPMENT
 
 DEPLOYMENT
 ----------
-Deploy the API through Render using render.yaml. Set MONGO_URI, JWT_SECRET,
-and CLIENT_URL. Deploy the frontend through Vercel with frontend/ as the root
-directory and set VITE_API_URL to the Render API URL plus /api.
+Deploy the API through Render using render.yaml, or through Vercel with
+backend/ as the project root. Set MONGO_URI, JWT_SECRET, and CLIENT_URL.
+Deploy the frontend through Vercel with frontend/ as the root directory and
+set VITE_API_URL to the deployed API URL plus /api.
 
 The backend must be redeployed after CLIENT_URL is updated with the final
 Vercel domain.
