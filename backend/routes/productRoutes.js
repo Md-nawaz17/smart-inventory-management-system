@@ -7,7 +7,25 @@ const router = express.Router();
 
 router.use(protect);
 
-const LOW_STOCK_LIMIT = 10;
+const DEFAULT_REORDER_POINT = 10;
+
+const reorderPointExpr = {
+  $ifNull: ["$reorderPoint", DEFAULT_REORDER_POINT],
+};
+
+const lowStockExpr = {
+  $and: [
+    { $gt: ["$quantity", 0] },
+    { $lt: ["$quantity", reorderPointExpr] },
+  ],
+};
+
+const inStockExpr = {
+  $and: [
+    { $gt: ["$quantity", 0] },
+    { $gte: ["$quantity", reorderPointExpr] },
+  ],
+};
 
 const buildProductQuery = (userId, queryParams) => {
   const { search = "", category = "All", status = "All" } = queryParams;
@@ -22,11 +40,11 @@ const buildProductQuery = (userId, queryParams) => {
   }
 
   if (status === "in-stock") {
-    query.quantity = { $gte: LOW_STOCK_LIMIT };
+    query.$expr = inStockExpr;
   }
 
   if (status === "low-stock") {
-    query.quantity = { $gt: 0, $lt: LOW_STOCK_LIMIT };
+    query.$expr = lowStockExpr;
   }
 
   if (status === "out-of-stock") {
@@ -49,7 +67,7 @@ const getInventorySummary = async (userId) => {
               {
                 $and: [
                   { $gt: ["$quantity", 0] },
-                  { $lt: ["$quantity", LOW_STOCK_LIMIT] },
+                  { $lt: ["$quantity", reorderPointExpr] },
                 ],
               },
               1,
@@ -80,9 +98,14 @@ const getInventorySummary = async (userId) => {
   };
 };
 
-router.post("/add", async (req, res) => {
+router.post("/add", async (req, res, next) => {
   try {
-    const { productName, category, quantity, price, supplier } = req.body;
+    const { productName, category, quantity, price, supplier, reorderPoint } =
+      req.body;
+    const numericReorderPoint =
+      reorderPoint === undefined || reorderPoint === ""
+        ? DEFAULT_REORDER_POINT
+        : Number(reorderPoint);
 
     if (!productName || !category || quantity === "" || price === "" || !supplier) {
       return res.status(400).json({
@@ -91,10 +114,14 @@ router.post("/add", async (req, res) => {
       });
     }
 
-    if (Number(quantity) < 0 || Number(price) < 0) {
+    if (
+      Number(quantity) < 0 ||
+      Number(price) < 0 ||
+      numericReorderPoint < 0
+    ) {
       return res.status(400).json({
         success: false,
-        message: "Quantity and price cannot be negative",
+        message: "Quantity, price, and low-stock alert cannot be negative",
       });
     }
 
@@ -103,6 +130,7 @@ router.post("/add", async (req, res) => {
       productName,
       category,
       quantity: Number(quantity),
+      reorderPoint: numericReorderPoint,
       price: Number(price),
       supplier,
     });
@@ -113,14 +141,11 @@ router.post("/add", async (req, res) => {
       product,
     });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: error.message,
-    });
+    next(error);
   }
 });
 
-router.get("/", async (req, res) => {
+router.get("/", async (req, res, next) => {
   try {
     const page = Math.max(Number(req.query.page) || 1, 1);
     const limit = Math.max(Number(req.query.limit) || 10, 1);
@@ -146,14 +171,11 @@ router.get("/", async (req, res) => {
       categories: categories.sort(),
     });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: error.message,
-    });
+    next(error);
   }
 });
 
-router.get("/export", async (req, res) => {
+router.get("/export", async (req, res, next) => {
   try {
     const products = await Product.find({ user: req.user._id }).sort({
       createdAt: -1,
@@ -161,14 +183,11 @@ router.get("/export", async (req, res) => {
 
     res.status(200).json(products);
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: error.message,
-    });
+    next(error);
   }
 });
 
-router.get("/analytics", async (req, res) => {
+router.get("/analytics", async (req, res, next) => {
   try {
     const user = req.user._id;
     const thirtyDaysAgo = new Date();
@@ -240,14 +259,11 @@ router.get("/analytics", async (req, res) => {
       movementData: Array.from(movementByDate.values()),
     });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: error.message,
-    });
+    next(error);
   }
 });
 
-router.get("/:id", async (req, res) => {
+router.get("/:id", async (req, res, next) => {
   try {
     const product = await Product.findOne({
       _id: req.params.id,
@@ -263,19 +279,25 @@ router.get("/:id", async (req, res) => {
 
     res.status(200).json(product);
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: error.message,
-    });
+    next(error);
   }
 });
 
-router.put("/:id", async (req, res) => {
+router.put("/:id", async (req, res, next) => {
   try {
-    if (Number(req.body.quantity) < 0 || Number(req.body.price) < 0) {
+    const hasReorderPoint = req.body.reorderPoint !== undefined;
+    const numericReorderPoint = hasReorderPoint
+      ? Number(req.body.reorderPoint)
+      : undefined;
+
+    if (
+      Number(req.body.quantity) < 0 ||
+      Number(req.body.price) < 0 ||
+      (hasReorderPoint && numericReorderPoint < 0)
+    ) {
       return res.status(400).json({
         success: false,
-        message: "Quantity and price cannot be negative",
+        message: "Quantity, price, and low-stock alert cannot be negative",
       });
     }
 
@@ -286,6 +308,10 @@ router.put("/:id", async (req, res) => {
       price: req.body.price,
       supplier: req.body.supplier,
     };
+
+    if (hasReorderPoint) {
+      updates.reorderPoint = numericReorderPoint;
+    }
 
     const updatedProduct = await Product.findOneAndUpdate(
       {
@@ -312,14 +338,11 @@ router.put("/:id", async (req, res) => {
       updatedProduct,
     });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: error.message,
-    });
+    next(error);
   }
 });
 
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", async (req, res, next) => {
   try {
     const deletedProduct = await Product.findOneAndDelete({
       _id: req.params.id,
@@ -344,10 +367,7 @@ router.delete("/:id", async (req, res) => {
       deletedProduct,
     });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: error.message,
-    });
+    next(error);
   }
 });
 

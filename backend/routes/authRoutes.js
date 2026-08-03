@@ -1,5 +1,6 @@
 const express = require("express");
 const jwt = require("jsonwebtoken");
+const rateLimit = require("express-rate-limit");
 const User = require("../models/User");
 const { protect } = require("../middleware/authMiddleware");
 
@@ -22,7 +23,15 @@ const sendAuthResponse = (res, user, statusCode = 200) => {
   });
 };
 
-router.post("/register", async (req, res) => {
+// Rate limiter limited to auth endpoints to prevent brute-force
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10, // limit each IP to 10 requests per windowMs
+  handler: (req, res) =>
+    res.status(429).json({ success: false, message: "Too many attempts. Try again in 15 minutes." }),
+});
+
+router.post("/register", authLimiter, async (req, res, next) => {
   try {
     const { name, email, password } = req.body;
 
@@ -58,16 +67,11 @@ router.post("/register", async (req, res) => {
 
     sendAuthResponse(res, user, 201);
   } catch (error) {
-    console.error("Register error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Unable to register user",
-      error: error.message,
-    });
+    next(error);
   }
 });
 
-router.post("/login", async (req, res) => {
+router.post("/login", authLimiter, async (req, res, next) => {
   try {
     const { email, password } = req.body;
 
@@ -89,12 +93,7 @@ router.post("/login", async (req, res) => {
 
     sendAuthResponse(res, user);
   } catch (error) {
-    console.error("Login error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Unable to login",
-      error: error.message,
-    });
+    next(error);
   }
 });
 

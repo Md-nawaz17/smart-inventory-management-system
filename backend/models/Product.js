@@ -27,6 +27,12 @@ const productSchema = new mongoose.Schema(
       min: 0,
     },
 
+    reorderPoint: {
+      type: Number,
+      default: 10,
+      min: 0,
+    },
+
     price: {
       type: Number,
       required: true,

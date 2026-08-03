@@ -1,11 +1,13 @@
 import { useState } from "react";
 import api, { clearStoredAuth, getStoredUser, saveAuth } from "../api/axios";
 import { AuthContext } from "./AuthContextObject";
+import { useToast } from "./ToastContext";
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => getStoredUser());
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const toast = useToast();
 
   const login = async (email, password, { remember = true } = {}) => {
     setLoading(true);
@@ -18,6 +20,7 @@ export function AuthProvider({ children }) {
     } catch (err) {
       const message = err?.response?.data?.message || "Invalid email or password.";
       setError(message);
+      toast.error(message);
       return { success: false, message };
     } finally {
       setLoading(false);
@@ -35,6 +38,7 @@ export function AuthProvider({ children }) {
     } catch (err) {
       const message = err?.response?.data?.message || "Could not create account.";
       setError(message);
+      toast.error(message);
       return { success: false, message };
     } finally {
       setLoading(false);

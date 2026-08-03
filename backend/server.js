@@ -1,6 +1,7 @@
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
+const helmet = require("helmet");
 const dns = require("node:dns");
 require("dotenv").config();
 
@@ -47,6 +48,10 @@ app.use(
     credentials: true,
   })
 );
+
+// Security headers
+app.use(helmet());
+
 app.use(express.json());
 
 app.get("/", (req, res) => {
@@ -56,6 +61,10 @@ app.get("/", (req, res) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/transactions", transactionRoutes);
+
+// Centralized error handler (must be the last middleware)
+const errorHandler = require("./middleware/errorHandler");
+app.use(errorHandler);
 
 const PORT = process.env.PORT || 5000;
 

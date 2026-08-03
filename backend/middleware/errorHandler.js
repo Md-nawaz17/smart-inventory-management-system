@@ -1,0 +1,13 @@
+// Centralized error handler
+module.exports = function errorHandler(err, req, res, next) {
+  // Only log stack in development to avoid leaking info in production
+  if (process.env.NODE_ENV === "development") {
+    // eslint-disable-next-line no-console
+    console.error(err);
+  }
+
+  const status = err.status || 500;
+  const message = err.message || "Internal server error";
+
+  res.status(status).json({ success: false, message });
+};

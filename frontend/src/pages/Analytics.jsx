@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import api from "../api/axios";
 import AnalyticsCharts from "../components/dashboard/AnalyticsCharts";
+import { useToast } from "../context/ToastContext";
 
 export default function Analytics() {
   const [analytics, setAnalytics] = useState({
@@ -8,6 +9,7 @@ export default function Analytics() {
     movementData: [],
   });
   const [error, setError] = useState("");
+  const toast = useToast();
 
   useEffect(() => {
     const fetchAnalytics = async () => {
@@ -15,7 +17,8 @@ export default function Analytics() {
         const { data } = await api.get("/products/analytics");
         setAnalytics(data);
       } catch (err) {
-        console.error("Failed to fetch analytics:", err);
+        const msg = err?.response?.data?.message || "Analytics could not be loaded. Please try again.";
+        toast.error(msg);
         setError(
           err?.response?.data?.message ||
             "Analytics could not be loaded. Please try again."
@@ -23,7 +26,7 @@ export default function Analytics() {
       }
     };
     fetchAnalytics();
-  }, []);
+  }, [toast]);
 
   return (
     <div className="space-y-4 animate-fade-in">

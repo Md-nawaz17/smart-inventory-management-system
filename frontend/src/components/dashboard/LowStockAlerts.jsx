@@ -2,7 +2,7 @@ import { AlertTriangle, ArrowRight, CheckCircle2 } from "lucide-react";
 import { Link } from "react-router-dom";
 
 /**
- * Props: items = [{ _id, productName, supplier, quantity }]
+ * Props: items = [{ _id, productName, supplier, quantity, reorderPoint }]
  */
 export default function LowStockAlerts({ items = [] }) {
   return (
@@ -36,8 +36,18 @@ export default function LowStockAlerts({ items = [] }) {
       ) : (
         <ul className="space-y-1">
           {items.slice(0, 6).map((item) => {
-            const threshold = 10;
-            const pct = Math.min(100, Math.max(6, (item.quantity / threshold) * 100));
+            const hasReorderPoint =
+              item.reorderPoint !== undefined &&
+              item.reorderPoint !== null &&
+              item.reorderPoint !== "";
+            const threshold =
+              hasReorderPoint && Number.isFinite(Number(item.reorderPoint))
+                ? Math.max(0, Number(item.reorderPoint))
+                : 10;
+            const pct = Math.min(
+              100,
+              Math.max(6, (item.quantity / Math.max(threshold, 1)) * 100)
+            );
             const isOut = item.quantity <= 0;
             return (
               <li
@@ -46,6 +56,7 @@ export default function LowStockAlerts({ items = [] }) {
               >
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium text-slate-800 dark:text-slate-100 truncate">{item.productName}</p>
+                  <p className="mt-0.5 text-xs text-slate-400">Alert at {threshold}</p>
                   <div className="mt-1.5 h-1.5 w-full max-w-[160px] rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
                     <div
                       className={`h-full rounded-full ${isOut ? "bg-rose-500" : "bg-amber-500"}`}

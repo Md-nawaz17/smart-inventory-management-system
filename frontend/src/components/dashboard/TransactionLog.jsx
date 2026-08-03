@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import api from "../../api/axios";
 import { notifyInventoryUpdated } from "../../utils/inventoryEvents";
+import { useToast } from "../../context/ToastContext";
 
 const emptyForm = {
   productId: "",
@@ -43,6 +44,7 @@ export default function TransactionLog({ compact = false }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const toast = useToast();
 
   const fetchTransactions = useCallback(async () => {
     setLoading(true);
@@ -50,11 +52,12 @@ export default function TransactionLog({ compact = false }) {
       const { data } = await api.get("/transactions");
       setTransactions(data.transactions || data);
     } catch (err) {
-      console.error("Failed to fetch transactions:", err);
+      const msg = err?.response?.data?.message || "Failed to fetch transactions.";
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [toast]);
 
   const fetchProducts = useCallback(async () => {
     try {
@@ -63,9 +66,10 @@ export default function TransactionLog({ compact = false }) {
       });
       setProducts(data.products || []);
     } catch (err) {
-      console.error("Failed to fetch products:", err);
+      const msg = err?.response?.data?.message || "Failed to fetch products.";
+      toast.error(msg);
     }
-  }, []);
+  }, [toast]);
 
   useEffect(() => {
     fetchTransactions();
@@ -86,8 +90,12 @@ export default function TransactionLog({ compact = false }) {
       setForm(emptyForm);
       await Promise.all([fetchTransactions(), fetchProducts()]);
       notifyInventoryUpdated();
+      const okMsg = form.type === "stock-in" ? "Stock-in recorded successfully" : "Stock-out recorded successfully";
+      toast.success(okMsg);
     } catch (err) {
-      setError(err?.response?.data?.message || "Could not record transaction.");
+      const msg = err?.response?.data?.message || "Could not record transaction.";
+      setError(msg);
+      toast.error(msg);
     } finally {
       setSaving(false);
     }

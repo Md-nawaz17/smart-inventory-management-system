@@ -5,6 +5,7 @@ const emptyProduct = {
   productName: "",
   category: "",
   quantity: "",
+  reorderPoint: 10,
   price: "",
   supplier: "",
 };
@@ -14,7 +15,15 @@ export default function ProductModal({ open, onClose, onSubmit, initialData, sav
 
   useEffect(() => {
     if (open) {
-      setForm(initialData ? { ...emptyProduct, ...initialData } : emptyProduct);
+      setForm(
+        initialData
+          ? {
+              ...emptyProduct,
+              ...initialData,
+              reorderPoint: initialData.reorderPoint ?? 10,
+            }
+          : emptyProduct
+      );
     }
   }, [open, initialData]);
 
@@ -104,6 +113,22 @@ export default function ProductModal({ open, onClose, onSubmit, initialData, sav
             </div>
 
             <div className="space-y-1.5">
+              <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                Low Stock Alert At
+              </label>
+              <input
+                name="reorderPoint"
+                type="number"
+                min="0"
+                required
+                value={form.reorderPoint}
+                onChange={handleChange}
+                placeholder="10"
+                className="input-field"
+              />
+            </div>
+
+            <div className="space-y-1.5">
               <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Price (Rs.)</label>
               <input
                 name="price"
@@ -117,10 +142,6 @@ export default function ProductModal({ open, onClose, onSubmit, initialData, sav
                 className="input-field"
               />
             </div>
-
-            <p className="sm:col-span-2 text-xs text-slate-400">
-              Low-stock alerts use the backend threshold of 10 units.
-            </p>
           </div>
 
           <div className="flex items-center justify-end gap-3 pt-2">

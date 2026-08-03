@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import api from "../api/axios";
 import SummaryCards from "../components/dashboard/SummaryCards";
 import LowStockAlerts from "../components/dashboard/LowStockAlerts";
 import AnalyticsCharts from "../components/dashboard/AnalyticsCharts";
 import TransactionLog from "../components/dashboard/TransactionLog";
+import { useToast } from "../context/ToastContext";
 
 export default function Dashboard() {
   const [products, setProducts] = useState([]);
@@ -20,6 +21,12 @@ export default function Dashboard() {
   });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+  const toast = useToast();
+  const toastRef = useRef(toast);
+
+  useEffect(() => {
+    toastRef.current = toast;
+  }, [toast]);
 
   useEffect(() => {
     const fetchProducts = async () => {
@@ -43,8 +50,13 @@ export default function Dashboard() {
           lowStockItems,
         });
         setAnalytics(analyticsData);
+        const lowCount = productData.summary?.lowStockItems || 0;
+        if (lowCount > 0) {
+          toastRef.current.warning(`${lowCount} items are running low on stock`);
+        }
       } catch (err) {
-        console.error("Failed to fetch products:", err);
+        const msg = err?.response?.data?.message || "Dashboard data could not be loaded. Please try again.";
+        toastRef.current.error(msg);
         setError(
           err?.response?.data?.message ||
             "Dashboard data could not be loaded. Please try again."

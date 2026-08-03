@@ -1,12 +1,15 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Menu, Sun, Moon, Bell, LogOut, ChevronDown } from "lucide-react";
 import { useTheme } from "../../context/useTheme";
 import { useAuth } from "../../context/useAuth";
+import NotificationPanel from "../dashboard/NotificationPanel";
 
 export default function Topbar({ onMenuClick, title = "Overview", lowStockCount = 0 }) {
   const { theme, toggleTheme } = useTheme();
   const { user, logout } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const notificationRef = useRef(null);
 
   return (
     <header className="sticky top-0 z-20 h-16 flex items-center justify-between gap-4 px-4 sm:px-6
@@ -34,20 +37,37 @@ export default function Topbar({ onMenuClick, title = "Overview", lowStockCount 
           {theme === "dark" ? <Sun className="h-4.5 w-4.5" /> : <Moon className="h-4.5 w-4.5" />}
         </button>
 
-        <button
-          aria-label="Notifications"
-          className="relative h-9 w-9 flex items-center justify-center rounded-lg text-slate-500
-                     dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-        >
-          <Bell className="h-4.5 w-4.5" />
-          {lowStockCount > 0 && (
-            <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-rose-500 ring-2 ring-white dark:ring-slate-900" />
-          )}
-        </button>
+        <div ref={notificationRef} className="relative">
+          <button
+            onClick={() => {
+              setNotificationsOpen((open) => !open);
+              setMenuOpen(false);
+            }}
+            aria-label="Notifications"
+            aria-controls="notification-panel"
+            aria-expanded={notificationsOpen}
+            className="relative h-9 w-9 flex items-center justify-center rounded-lg text-slate-500
+                       dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+          >
+            <Bell className="h-4.5 w-4.5" />
+            {lowStockCount > 0 && (
+              <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-rose-500 ring-2 ring-white dark:ring-slate-900" />
+            )}
+          </button>
+
+          <NotificationPanel
+            isOpen={notificationsOpen}
+            onClose={() => setNotificationsOpen(false)}
+            boundaryRef={notificationRef}
+          />
+        </div>
 
         <div className="relative">
           <button
-            onClick={() => setMenuOpen((v) => !v)}
+            onClick={() => {
+              setMenuOpen((v) => !v);
+              setNotificationsOpen(false);
+            }}
             className="flex items-center gap-2 rounded-lg pl-1.5 pr-2 py-1 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
           >
             <div className="h-8 w-8 rounded-full bg-brand-100 dark:bg-brand-500/20 flex items-center justify-center text-brand-700 dark:text-brand-400 font-semibold text-sm">

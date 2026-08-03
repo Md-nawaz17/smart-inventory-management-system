@@ -7,7 +7,7 @@ const router = express.Router();
 
 router.use(protect);
 
-router.post("/", async (req, res) => {
+router.post("/", async (req, res, next) => {
   try {
     const { productId, type, quantity, date, note } = req.body;
     const numericQuantity = Number(quantity);
@@ -76,14 +76,11 @@ router.post("/", async (req, res) => {
       product,
     });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: error.message,
-    });
+    next(error);
   }
 });
 
-router.get("/", async (req, res) => {
+router.get("/", async (req, res, next) => {
   try {
     const transactions = await Transaction.find({ user: req.user._id })
       .populate("product", "productName category")
@@ -92,10 +89,7 @@ router.get("/", async (req, res) => {
 
     res.status(200).json(transactions);
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: error.message,
-    });
+    next(error);
   }
 });
 

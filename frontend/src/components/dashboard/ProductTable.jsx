@@ -11,13 +11,30 @@ import {
   ArrowUpDown,
 } from "lucide-react";
 import api from "../../api/axios";
+import ConfirmDialog from "../ui/ConfirmDialog";
 import { notifyInventoryUpdated } from "../../utils/inventoryEvents";
 import ProductModal from "./ProductModal";
+import { useToast } from "../../context/ToastContext";
 
 const PAGE_SIZE = 10;
-const LOW_STOCK_LIMIT = 10;
+const DEFAULT_REORDER_POINT = 10;
 
-function stockStatus(qty, threshold = LOW_STOCK_LIMIT) {
+function getReorderPoint(product) {
+  if (
+    product?.reorderPoint === undefined ||
+    product?.reorderPoint === null ||
+    product?.reorderPoint === ""
+  ) {
+    return DEFAULT_REORDER_POINT;
+  }
+
+  const reorderPoint = Number(product?.reorderPoint);
+  return Number.isFinite(reorderPoint) && reorderPoint >= 0
+    ? reorderPoint
+    : DEFAULT_REORDER_POINT;
+}
+
+function stockStatus(qty, threshold = DEFAULT_REORDER_POINT) {
   if (qty <= 0) return { label: "Out of stock", tone: "rose" };
   if (qty < threshold) return { label: "Low stock", tone: "amber" };
   return { label: "In stock", tone: "emerald" };
@@ -36,6 +53,7 @@ const rowAccent = {
 };
 
 export default function ProductTable({ onDataChange }) {
+  const toast = useToast();
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -47,6 +65,8 @@ export default function ProductTable({ onDataChange }) {
   const [saving, setSaving] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmProduct, setConfirmProduct] = useState(null);
 
   // ---- Fetch products from your existing backend ----
   const fetchProducts = async () => {
@@ -59,7 +79,8 @@ export default function ProductTable({ onDataChange }) {
       setProducts(nextProducts);
       onDataChange?.(nextProducts);
     } catch (err) {
-      console.error("Failed to fetch products:", err);
+      const msg = err?.response?.data?.message || "Failed to fetch products.";
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
@@ -81,7 +102,7 @@ export default function ProductTable({ onDataChange }) {
         p.productName?.toLowerCase().includes(search.toLowerCase()) ||
         p.supplier?.toLowerCase().includes(search.toLowerCase());
       const matchesCategory = categoryFilter === "all" || p.category === categoryFilter;
-      const status = stockStatus(p.quantity).label;
+      const status = stockStatus(p.quantity, getReorderPoint(p)).label;
       const matchesStatus =
         statusFilter === "all" ||
         (statusFilter === "low" && status === "Low stock") ||
@@ -104,37 +125,46 @@ export default function ProductTable({ onDataChange }) {
         productName: formData.productName,
         category: formData.category,
         quantity: Number(formData.quantity),
+        reorderPoint: Number(formData.reorderPoint),
         price: Number(formData.price),
         supplier: formData.supplier,
       };
 
       if (editingProduct) {
         await api.put(`/products/${editingProduct._id}`, payload);
+        toast.success("Product updated successfully");
       } else {
         await api.post("/products/add", payload);
+        toast.success("Product added successfully");
       }
       await fetchProducts();
       notifyInventoryUpdated();
       setModalOpen(false);
       setEditingProduct(null);
     } catch (err) {
-      console.error("Failed to save product:", err);
+      const msg = err?.response?.data?.message || "Failed to save product.";
+      toast.error(msg);
     } finally {
       setSaving(false);
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm("Delete this product? This action cannot be undone.")) return;
+  const handleDeleteConfirm = async () => {
+    if (!confirmProduct) return;
+    const id = confirmProduct._id;
+    setConfirmOpen(false);
     setDeletingId(id);
     try {
       await api.delete(`/products/${id}`);
+      toast.success("Product deleted successfully");
       await fetchProducts();
       notifyInventoryUpdated();
     } catch (err) {
-      console.error("Failed to delete product:", err);
+      const msg = err?.response?.data?.message || "Failed to delete product.";
+      toast.error(msg);
     } finally {
       setDeletingId(null);
+      setConfirmProduct(null);
     }
   };
 
@@ -148,6 +178,7 @@ export default function ProductTable({ onDataChange }) {
         "Product Name": product.productName,
         Category: product.category,
         Quantity: product.quantity,
+        "Low Stock Alert At": getReorderPoint(product),
         Price: product.price,
         Supplier: product.supplier,
         "Inventory Value": Number(product.quantity) * Number(product.price),
@@ -156,8 +187,10 @@ export default function ProductTable({ onDataChange }) {
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, worksheet, "Inventory");
       XLSX.writeFile(workbook, `inventory-report-${Date.now()}.xlsx`);
+      toast.success("Inventory exported successfully");
     } catch (err) {
-      console.error("Failed to export products:", err);
+      const msg = err?.response?.data?.message || "Failed to export products.";
+      toast.error(msg);
     } finally {
       setExporting(false);
     }
@@ -279,7 +312,8 @@ export default function ProductTable({ onDataChange }) {
               </tr>
             ) : (
               paginated.map((p) => {
-                const status = stockStatus(p.quantity);
+                const reorderPoint = getReorderPoint(p);
+                const status = stockStatus(p.quantity, reorderPoint);
                 return (
                   <tr
                     key={p._id}
@@ -297,10 +331,15 @@ export default function ProductTable({ onDataChange }) {
                       Rs. {Number(p.price).toLocaleString()}
                     </td>
                     <td className="px-5 py-3.5">
-                      <span className={`badge border ${toneClasses[status.tone]}`}>
-                        <span className="h-1.5 w-1.5 rounded-full bg-current" />
-                        {status.label}
-                      </span>
+                      <div className="flex flex-col items-start gap-1.5">
+                        <span className={`badge border ${toneClasses[status.tone]}`}>
+                          <span className="h-1.5 w-1.5 rounded-full bg-current" />
+                          {status.label}
+                        </span>
+                        <span className="inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+                          Alert: {reorderPoint}
+                        </span>
+                      </div>
                     </td>
                     <td className="px-5 py-3.5">
                       <div className="flex items-center justify-end gap-1.5">
@@ -315,7 +354,7 @@ export default function ProductTable({ onDataChange }) {
                           <Pencil className="h-4 w-4" />
                         </button>
                         <button
-                          onClick={() => handleDelete(p._id)}
+                          onClick={() => { setConfirmProduct(p); setConfirmOpen(true); }}
                           disabled={deletingId === p._id}
                           className="h-8 w-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors disabled:opacity-40"
                           aria-label={`Delete ${p.productName}`}
@@ -361,6 +400,19 @@ export default function ProductTable({ onDataChange }) {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        isOpen={confirmOpen}
+        title={`Delete ${confirmProduct?.productName || "product"}?`}
+        message="This action cannot be undone."
+        confirmLabel="Delete"
+        danger={true}
+        onConfirm={handleDeleteConfirm}
+        onCancel={() => {
+          setConfirmOpen(false);
+          setConfirmProduct(null);
+        }}
+      />
 
       <ProductModal
         open={modalOpen}
