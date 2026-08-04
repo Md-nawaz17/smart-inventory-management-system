@@ -1,115 +1,125 @@
 # StockPilot
 
-StockPilot is a full-stack inventory management dashboard. Authenticated users
-can manage products, record stock movement, track low-stock items, review
-analytics, and export inventory to Excel.
+> A full-stack inventory management dashboard for keeping products, stock
+> movement, and low-stock alerts in one clear workspace.
 
-## Live Demo
+[Live application](https://stockpilot-im-app.vercel.app) · [API](https://stockpilot-api-app.vercel.app)
 
-[Open StockPilot](https://stockpilot-im-app.vercel.app)
+![StockPilot sign-in screen](screenshots/Frontpage.png)
 
-API: https://stockpilot-api-app.vercel.app
+## Highlights
 
-## Features
+- Create an account and access a private, JWT-protected inventory workspace.
+- Add, edit, delete, search, filter, paginate, and export products to Excel.
+- Set a reorder point for each product and spot low- or zero-stock items early.
+- Record stock-in and stock-out activity with validation that prevents negative
+  inventory.
+- Review inventory value, product totals, category distribution, and 30-day
+  stock movement trends.
+- Work comfortably in responsive light and dark themes with toast feedback,
+  confirmations, and a stock-alert notification panel.
 
-- JWT authentication with protected dashboard routes
-- Product create, edit, delete, search, filters, and pagination
-- Configurable per-product reorder points and low-stock alerts
-- Stock-in and stock-out transactions with quantity validation
-- Dashboard summaries, category analytics, and 30-day movement charts
-- XLSX inventory exports
-- Responsive light and dark interface
-- Toast feedback, delete confirmation, and stock-alert notifications
-- Security headers, authentication rate limiting, and GitHub Actions CI
+## Tech stack
 
-## Tech Stack
-
-| Layer | Technology |
+| Area | Tools |
 | --- | --- |
-| Frontend | React, Vite, Tailwind CSS, React Router |
+| Frontend | React, Vite, Tailwind CSS, React Router, Axios |
 | Backend | Node.js, Express, MongoDB, Mongoose |
-| Authentication | JWT, bcryptjs |
-| UI and data | Lucide React, Recharts, SheetJS/xlsx |
-| Deployment | Vercel frontend and serverless API |
+| Authentication | JSON Web Tokens, bcryptjs |
+| Data & charts | Recharts, SheetJS / xlsx |
+| Security | Helmet, CORS, express-rate-limit |
+| Hosting | Vercel frontend and serverless API |
 
-## Run Locally
+## Screenshots
 
-Requirements: Node.js 20 or later, npm, and a MongoDB connection string.
+| Sign in | Dashboard |
+| --- | --- |
+| ![StockPilot sign-in screen](screenshots/Frontpage.png) | ![StockPilot dashboard](screenshots/dashboard.png) |
 
-### Backend
+| Product management | Analytics |
+| --- | --- |
+| ![StockPilot products page](screenshots/products.png) | ![StockPilot analytics page](screenshots/analytics.png) |
+
+| Dark theme — dashboard | Dark theme — products |
+| --- | --- |
+| ![StockPilot dark theme dashboard](screenshots/darkmode1.png) | ![StockPilot dark theme products](screenshots/darkmode2.png) |
+
+| Dark theme — transactions | Dark theme — analytics |
+| --- | --- |
+| ![StockPilot dark theme transactions](screenshots/darkmode3.png) | ![StockPilot dark theme analytics](screenshots/darkmode4.png) |
+
+## Run locally
+
+### Prerequisites
+
+- Node.js 20 or later
+- npm
+- A MongoDB connection string
+
+### 1. Install dependencies
 
 ```bash
-cd backend
-npm install
+npm install --prefix backend
+npm install --prefix frontend
 ```
 
-Create `backend/.env`:
+### 2. Configure environment variables
+
+Create `backend/.env` from [`backend/.env.example`](backend/.env.example):
 
 ```env
 PORT=5000
 MONGO_URI=your-mongodb-connection-string
-JWT_SECRET=your-long-random-secret
+JWT_SECRET=use-a-long-random-secret
 JWT_EXPIRES_IN=7d
 CLIENT_URL=http://localhost:5173
 ```
 
-Start the API:
-
-```bash
-npm run dev
-```
-
-### Frontend
-
-In a second terminal:
-
-```bash
-cd frontend
-npm install
-```
-
-Create `frontend/.env`:
+Create `frontend/.env` from [`frontend/.env.example`](frontend/.env.example):
 
 ```env
 VITE_API_URL=http://localhost:5000/api
 ```
 
-Start the frontend:
+### 3. Start the application
+
+Run each command in a separate terminal:
 
 ```bash
-npm run dev
+npm run dev --prefix backend
+```
+
+```bash
+npm run dev --prefix frontend
 ```
 
 Open `http://localhost:5173`.
 
-## Deploy
+## Deploy on Vercel
 
-1. Deploy the API using one of these options:
-   - **Render:** create a Web Service from `render.yaml` and set `MONGO_URI`,
-     `JWT_SECRET`, and `CLIENT_URL`.
-   - **Vercel:** import the repository with `backend` as the project root. Set
-     `MONGO_URI`, `JWT_SECRET`, and `CLIENT_URL`; `backend/vercel.json` routes
-     requests to the serverless API entry point.
-2. Import the repository into Vercel with `frontend` as the project root.
-3. Set `VITE_API_URL` to the deployed API URL followed by `/api`.
-4. Set the API's `CLIENT_URL` to the frontend's Vercel URL and redeploy the
-   API if necessary.
+1. Create a Vercel project with `backend` as its root directory. Add
+   `MONGO_URI`, `JWT_SECRET`, `JWT_EXPIRES_IN`, and `CLIENT_URL` to its
+   environment variables.
+2. Create a second Vercel project with `frontend` as its root directory. Set
+   `VITE_API_URL` to `https://your-api-domain/api`.
+3. Set the backend's `CLIENT_URL` to the deployed frontend URL, then redeploy
+   the API if the variable changed.
 
-The project includes Vercel configuration for the frontend SPA and backend
-serverless API, plus `render.yaml` for the Render API option.
+The repository includes `backend/vercel.json` for the serverless Express API
+and `frontend/vercel.json` for Vite single-page-app routing.
 
-## Verification
+## Verify the project
 
-- Frontend lint and production build pass.
-- Backend JavaScript syntax checks pass.
-- The API root and frontend root return HTTP 200 locally.
-- Protected product routes return HTTP 401 without a token.
+```bash
+npm run lint --prefix frontend
+npm run build --prefix frontend
+node --check backend/server.js
+node --check backend/app.js
+node --check backend/api/index.js
+```
 
-## Screenshots
-
-![Dashboard](screenshots/dashboard.png)
-![Products](screenshots/products.png)
-![Analytics](screenshots/analytics.png)
+The API root is available at `/`; product and transaction routes require a
+valid bearer token.
 
 ## License
 
