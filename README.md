@@ -6,9 +6,9 @@ analytics, and export inventory to Excel.
 
 ## Live Demo
 
-[Open StockPilot](https://stockpilot-md-nawaz17.vercel.app)
+[Open StockPilot](https://stockpilot-im-app.vercel.app)
 
-API: https://stockpilot-api-md-nawaz17.vercel.app
+API: https://stockpilot-api-app.vercel.app
 
 ## Features
 

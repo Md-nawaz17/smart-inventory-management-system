@@ -7,7 +7,7 @@ to manage stock, log product movement, identify items that need attention, and
 review inventory trends.
 
 Repository: https://github.com/Md-nawaz17/smart-inventory-management-system
-Live application: https://stockpilot-md-nawaz17.vercel.app
+Live application: https://stockpilot-im-app.vercel.app
 
 
 CORE CAPABILITIES
