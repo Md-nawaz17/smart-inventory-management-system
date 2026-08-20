@@ -75,6 +75,9 @@ JWT_EXPIRES_IN=7d
 CLIENT_URL=http://localhost:5173
 ```
 
+`backend/.env` is ignored by Git. For local development, `MONGO_URI` must point
+to a reachable MongoDB instance, such as local MongoDB or MongoDB Atlas.
+
 Create `frontend/.env` from [`frontend/.env.example`](frontend/.env.example):
 
 ```env
@@ -99,11 +102,13 @@ Open `http://localhost:5173`.
 
 1. Create a Vercel project with `backend` as its root directory. Add
    `MONGO_URI`, `JWT_SECRET`, `JWT_EXPIRES_IN`, and `CLIENT_URL` to its
-   environment variables.
+   environment variables. Production API:
+   `https://stockpilot-api-app.vercel.app`.
 2. Create a second Vercel project with `frontend` as its root directory. Set
-   `VITE_API_URL` to `https://your-api-domain/api`.
+   `VITE_API_URL` to `https://stockpilot-api-app.vercel.app/api`.
 3. Set the backend's `CLIENT_URL` to the deployed frontend URL, then redeploy
-   the API if the variable changed.
+   the API if the variable changed. Production frontend:
+   `https://stockpilot-im-app.vercel.app`.
 
 The repository includes `backend/vercel.json` for the serverless Express API
 and `frontend/vercel.json` for Vite single-page-app routing.

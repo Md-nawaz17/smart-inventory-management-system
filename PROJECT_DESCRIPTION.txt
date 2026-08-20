@@ -8,6 +8,7 @@ review inventory trends.
 
 Repository: https://github.com/Md-nawaz17/smart-inventory-management-system
 Live application: https://stockpilot-im-app.vercel.app
+Live API: https://stockpilot-api-app.vercel.app
 
 
 CORE CAPABILITIES
@@ -39,7 +40,6 @@ PROJECT STRUCTURE
 backend/        Express API, models, routes, and middleware
 frontend/       React dashboard application
 screenshots/    Application screenshots
-render.yaml     Render backend deployment configuration
 frontend/vercel.json
                 Vercel frontend deployment configuration
 backend/vercel.json
@@ -59,10 +59,15 @@ LOCAL DEVELOPMENT
 
 DEPLOYMENT
 ----------
-Deploy the API through Render using render.yaml, or through Vercel with
-backend/ as the project root. Set MONGO_URI, JWT_SECRET, and CLIENT_URL.
-Deploy the frontend through Vercel with frontend/ as the root directory and
-set VITE_API_URL to the deployed API URL plus /api.
+Production runs on Vercel:
+- Frontend: https://stockpilot-im-app.vercel.app
+- API: https://stockpilot-api-app.vercel.app
+
+Deploy the API through Vercel with backend/ as the project root. Set MONGO_URI,
+JWT_SECRET, JWT_EXPIRES_IN, and CLIENT_URL.
+
+Deploy the frontend through Vercel with frontend/ as the root directory and set
+VITE_API_URL to https://stockpilot-api-app.vercel.app/api.
 
 The backend must be redeployed after CLIENT_URL is updated with the final
 Vercel domain.
