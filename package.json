@@ -4,5 +4,24 @@
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "mongoose": "^9.7.0"
-  }
+  },
+  "name": "smart-inventory-system",
+  "version": "1.0.0",
+  "description": "> A full-stack inventory management dashboard for keeping products, stock\r > movement, and low-stock alerts in one clear workspace.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Md-nawaz17/smart-inventory-management-system.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/Md-nawaz17/smart-inventory-management-system/issues"
+  },
+  "homepage": "https://github.com/Md-nawaz17/smart-inventory-management-system#readme"
 }
